@@ -34,23 +34,23 @@ jobs:
       contents: read
       packages: write
     steps:
-      - name: Maximize build space
-        uses: easimon/maximize-build-space@v10
+      - name: Free disk space
+        # Tried easimon/maximize-build-space@v10 first — its remount-at-
+        # /var/lib/docker approach broke buildx setup (`open
+        # /var/lib/docker/tmp/...: no such file or directory` because the
+        # action mounts an empty volume over docker's data-root without
+        # recreating expected subdirs). jlumbroso/free-disk-space just
+        # deletes preinstalled toolchains in-place on /, no remount, no
+        # docker daemon shuffle — frees ~45 GB cleanly.
+        uses: jlumbroso/free-disk-space@main
         with:
-          # Mount the freed space AT /var/lib/docker so Docker's data-root
-          # actually gets the ~60 GB. The action's default mount path is
-          # /mnt/build, which leaves Docker stuck on the ~14 GB root volume
-          # and causes "no space left on device" during the build's first
-          # layer extraction. The action handles stopping docker, moving
-          # the data, mounting the new volume here, and restarting docker.
-          build-mount-path: '/var/lib/docker'
-          root-reserve-mb: 4096
-          swap-size-mb: 1024
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
-          remove-docker-images: 'true'
+          tool-cache:     false       # /opt/hostedtoolcache (~10 GB) — keep, contains Python/Node we don't currently use but might
+          android:        true
+          dotnet:         true
+          haskell:        true
+          large-packages: true
+          docker-images:  true
+          swap-storage:   true
 
       - uses: actions/checkout@v4
 
