@@ -1,34 +1,51 @@
-# Build and push the worker image to GHCR on every vX.Y.Z tag.
+# Build and push the worker image to GHCR.
 #
-# IMPORTANT: This workflow does NOT run the very first build. The initial
-# v1.0.0 push is done manually with `docker buildx build … --push` from a
-# laptop because:
-#   - The image is ~38 GB
-#   - GitHub Actions' free runner has ~14 GB free disk
-#   - Without an existing image to layer-cache against, the build hits the
-#     disk limit before completing
-# Once v1.0.0 exists in GHCR, this workflow uses GHA's layer cache to do
-# subsequent builds incrementally — only the layers that changed get
-# rebuilt and pushed, fitting easily within the runner's disk budget.
+# Trigger paths:
+#   1. Tag push (vX.Y.Z) — normal release flow once v1.0.0 exists.
+#   2. workflow_dispatch — used for the initial v1.0.0 build AND for ad-hoc
+#      republish of a specific version without a tag bump.
+#
+# Disk-space approach:
+#   The image is ~38 GB and GHA's default ubuntu-latest runner has ~14 GB
+#   free, which would normally make this build impossible on GHA. The
+#   easimon/maximize-build-space action removes preinstalled toolchains we
+#   don't need (~46 GB of dotnet/android/haskell/codeql/docker images),
+#   taking the runner to ~60 GB free — enough for the no-cache initial
+#   build. Subsequent builds re-use the type=gha layer cache and run much
+#   faster.
 
 name: build-and-push
 
 on:
   push:
     tags: ['v*.*.*']
-  workflow_dispatch:          # manual trigger fallback for debugging
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semver version to publish (no leading v, e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 350         # GHA hard cap is 360 (6h); leave margin
     permissions:
       contents: read
-      packages: write           # required for pushing to ghcr.io
+      packages: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@v10
+        with:
+          root-reserve-mb: 4096
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -40,9 +57,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract version from tag
+      - name: Resolve version
         id: meta
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
 
       - name: Build and push
         uses: docker/build-push-action@v5
