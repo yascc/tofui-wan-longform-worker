@@ -27,21 +27,33 @@ RUN git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git /workspace
     pip install --no-cache-dir -r /workspace/ComfyUI/requirements.txt && \
     pip install --no-cache-dir -r /workspace/ComfyUI/custom_nodes/ComfyUI-WanVideoWrapper/requirements.txt
 
-# Model bake — downloads ~25 GB from Kijai's HuggingFace repo. Cached by
+# Model bake — downloads ~25 GB from Kijai's HuggingFace repos. Cached by
 # Docker layer caching: subsequent rebuilds skip this step entirely unless
 # this RUN command itself changes (e.g., a new model URL).
+#
+# URLs corrected during Day 2 first-build debugging (plan §7 had stale paths
+# from before Kijai split fp8-quantized models into a separate repo). Current
+# paths verified via HF API + HEAD checks 2026-05-15:
+#   - Main diffusion: Kijai/WanVideo_comfy_fp8_scaled/Wan22Animate/...
+#     Picked the "_v2" variant (16.5 GB) over v1 (17.5 GB) — newer, smaller.
+#   - Relight LoRA: Kijai/WanVideo_comfy/LoRAs/Wan22_relight/
+#     Actual filename is WanAnimate_relight_lora_fp16.safetensors (1.37 GB),
+#     not the Wan22_Animate_relight_lora.safetensors the plan referenced.
+# Other 3 URLs (VAE, LightX2V LoRA, umt5 text encoder) verified unchanged.
+# Local output filenames kept stable so worker.py + workflow JSON don't
+# need to know which mirror we pulled from.
 RUN mkdir -p /workspace/ComfyUI/models/diffusion_models \
              /workspace/ComfyUI/models/vae \
              /workspace/ComfyUI/models/loras \
              /workspace/ComfyUI/models/text_encoders && \
     wget -q -O /workspace/ComfyUI/models/diffusion_models/Wan2_2-Animate-14B_fp8_e4m3fn_scaled_KJ.safetensors \
-        "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan2_2-Animate-14B_fp8_e4m3fn_scaled_KJ.safetensors" && \
+        "https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/Wan22Animate/Wan2_2-Animate-14B_fp8_scaled_e4m3fn_KJ_v2.safetensors" && \
     wget -q -O /workspace/ComfyUI/models/vae/Wan2_1_VAE_bf16.safetensors \
         "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan2_1_VAE_bf16.safetensors" && \
     wget -q -O /workspace/ComfyUI/models/loras/Wan21_T2V_14B_lightx2v_cfg_step_distill_lora_rank32.safetensors \
         "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan21_T2V_14B_lightx2v_cfg_step_distill_lora_rank32.safetensors" && \
     wget -q -O /workspace/ComfyUI/models/loras/Wan22_Animate_relight_lora.safetensors \
-        "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan22_Animate_relight_lora.safetensors" && \
+        "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/LoRAs/Wan22_relight/WanAnimate_relight_lora_fp16.safetensors" && \
     wget -q -O /workspace/ComfyUI/models/text_encoders/umt5-xxl-enc-bf16.safetensors \
         "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/umt5-xxl-enc-bf16.safetensors"
 
