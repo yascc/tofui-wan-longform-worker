@@ -37,6 +37,13 @@ jobs:
       - name: Maximize build space
         uses: easimon/maximize-build-space@v10
         with:
+          # Mount the freed space AT /var/lib/docker so Docker's data-root
+          # actually gets the ~60 GB. The action's default mount path is
+          # /mnt/build, which leaves Docker stuck on the ~14 GB root volume
+          # and causes "no space left on device" during the build's first
+          # layer extraction. The action handles stopping docker, moving
+          # the data, mounting the new volume here, and restarting docker.
+          build-mount-path: '/var/lib/docker'
           root-reserve-mb: 4096
           swap-size-mb: 1024
           remove-dotnet: 'true'
