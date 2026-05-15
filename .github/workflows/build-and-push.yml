@@ -1,0 +1,57 @@
+# Build and push the worker image to GHCR on every vX.Y.Z tag.
+#
+# IMPORTANT: This workflow does NOT run the very first build. The initial
+# v1.0.0 push is done manually with `docker buildx build … --push` from a
+# laptop because:
+#   - The image is ~38 GB
+#   - GitHub Actions' free runner has ~14 GB free disk
+#   - Without an existing image to layer-cache against, the build hits the
+#     disk limit before completing
+# Once v1.0.0 exists in GHCR, this workflow uses GHA's layer cache to do
+# subsequent builds incrementally — only the layers that changed get
+# rebuilt and pushed, fitting easily within the runner's disk budget.
+
+name: build-and-push
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:          # manual trigger fallback for debugging
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write           # required for pushing to ghcr.io
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: meta
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/yascc/tofui-wan-longform-worker:v${{ steps.meta.outputs.version }}
+            ghcr.io/yascc/tofui-wan-longform-worker:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
