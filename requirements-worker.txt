@@ -1,0 +1,5 @@
+# Worker runtime deps — installed on top of the runpod/pytorch base + the
+# ComfyUI/WanVideoWrapper requirements. Keep this short: anything that pulls
+# in heavy transitive deps lives in the ComfyUI requirements layer above.
+boto3>=1.35.0
+requests>=2.32.0

@@ -1,0 +1,15 @@
+{
+  "_comment": "PLACEHOLDER — replaced on Day 11 with the real ComfyUI workflow JSON exported from a working WAN 2.2 Animate graph. Node IDs in patch_for_chunk() are unknown until that export happens. Tracked separately because the workflow JSON is the single source of truth for sampler steps, LightX2V LoRA weight, TeaCache threshold, Relight LoRA weight, etc.",
+  "_expected_params": {
+    "width": 368,
+    "height": 640,
+    "frames_per_chunk": 77,
+    "fps": 16,
+    "sampler_steps": 4,
+    "lightx2v_lora_weight": 1.0,
+    "relight_lora_weight": 0.5,
+    "sage_attention": "low_noise_pass_only",
+    "teacache_threshold": 0.025,
+    "torch_compile": true
+  }
+}

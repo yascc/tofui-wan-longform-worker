@@ -1,0 +1,12 @@
+# Keep the build context tiny — everything below is fetched inside the
+# Dockerfile (ComfyUI, models) or doesn't belong in the image (git history,
+# CI config, docs). Without this, the build sends the whole worktree to
+# the Docker daemon on every build invocation.
+.git/
+.github/
+.gitignore
+README.md
+WORKER_VERSION
+*.md
+__pycache__/
+*.pyc
